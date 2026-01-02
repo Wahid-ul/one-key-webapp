@@ -1,0 +1,16 @@
+@import "tailwindcss";
+
+@theme {
+  --animate-rotate-ccw: rotate-ccw 20s linear infinite;
+  --animate-rotate-cw: rotate-cw 20s linear infinite;
+}
+
+@keyframes rotate-ccw {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(-360deg); }
+}
+
+@keyframes rotate-cw {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
