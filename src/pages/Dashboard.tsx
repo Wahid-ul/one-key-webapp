@@ -1,15 +1,10 @@
-import { useAppSelector } from '../app/hooks'
 import { useRef, useEffect } from 'react'
 
 interface DashboardProps {
-  onNavigate: (page: 'dashboard' | 'aadhaar') => void;
+  onNavigate: (page: 'dashboard' | 'aadhaar' | 'pan') => void;
 }
 
 const Dashboard = ({ onNavigate }: DashboardProps) => {
-  const selectedService = useAppSelector(
-    (state) => state.service.selectedService
-  )
-
   const aadhaarRef = useRef<HTMLDivElement>(null)
   const panRef = useRef<HTMLDivElement>(null)
   const onlineRef = useRef<HTMLDivElement>(null)
@@ -112,7 +107,16 @@ const Dashboard = ({ onNavigate }: DashboardProps) => {
 
       {/* PAN Card Section */}
       <section className="max-w-5xl mx-auto bg-gray-100 p-6 rounded-xl shadow-md">
-        <h2 className="text-2xl font-bold mb-2">PAN Card</h2>
+        <div className="flex items-center mb-2">
+          <h2 className="text-2xl font-bold">PAN Card</h2>
+          <button
+            onClick={() => onNavigate('pan')}
+            className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full transition ml-4"
+            title="View all PAN services"
+          >
+            →
+          </button>
+        </div>
         <p className="text-gray-600 mb-6">
           PAN card services for individuals and businesses including new
           applications and corrections.

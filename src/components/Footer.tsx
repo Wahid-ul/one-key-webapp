@@ -39,8 +39,8 @@ const Footer = () => {
             <h4 className="text-lg font-semibold mb-4">Contact Us</h4>
             <div className="space-y-2 text-sm text-gray-300">
               <p>📧 info@onekeynow.com</p>
-              <p>📞 +91 12345 67890</p>
-              <p>📍 Mumbai, India</p>
+              <p>📞 +91 87239 21452</p>
+              <p>📍 Bangalore, India</p>
             </div>
             <div className="flex space-x-4 mt-4">
               <a href="#" className="text-gray-300 hover:text-white transition">📘</a>
