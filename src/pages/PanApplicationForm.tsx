@@ -1,20 +1,61 @@
-import { useState, useEffect } from 'react'
-import { useSelector, useDispatch } from 'react-redux'
+import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import type { RootState } from '../app/store'
-import { updateFormData, setCurrentStep, resetForm, setUserId } from '../features/service/panApplicationSlice'
+import {
+  updateFormData,
+  setCurrentStep,
+  resetForm,
+  setUserId,
+} from '../features/service/panApplicationSlice'
+
+import { ZodError } from 'zod'
+
+
+import {
+  personalDetailsSchema,
+  addressSchema,
+  documentSchema
+} from '../validaton/panApplication.schema'
+
+import {
+  Box,
+  Container,
+  Paper,
+  Stepper,
+  Step,
+  StepLabel,
+  Typography,
+  TextField,
+  Button,
+  Grid,
+} from '@mui/material'
+
+const steps = ['Personal', 'Residence Address', 'Documents', 'Review', 'Payment']
 
 const PanApplicationForm = ({ onBack }: { onBack: () => void }) => {
   const dispatch = useDispatch()
-  const { formData, currentStep } = useSelector((state: RootState) => state.panApplication)
-  const [userId] = useState(() => `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`)
+  const { formData, currentStep } = useSelector(
+    (state: RootState) => state.panApplication
+  )
+
+  const [userId] = useState(`USER-${Date.now().toString().slice(-6)}`)
+  const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     dispatch(setUserId(userId))
-    window.location.hash = userId
     window.scrollTo(0, 0)
-  }, [userId, dispatch])
+  }, [dispatch, userId])
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const [documents, setDocuments] = useState<{
+    aadhaarFront?: File
+    aadhaarBack?: File
+    signature?: File
+    photo?: File
+  }>({})
+  // Handle field changes
+  const handleTextChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
     const { name, value } = e.target
     dispatch(updateFormData({ [name]: value }))
   }
@@ -22,508 +63,218 @@ const PanApplicationForm = ({ onBack }: { onBack: () => void }) => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, files } = e.target
     if (files && files[0]) {
-      dispatch(updateFormData({ [name]: files[0] }))
+      setDocuments((prev) => ({ ...prev, [name]: files[0] }))
     }
   }
 
-  const nextStep = () => dispatch(setCurrentStep(currentStep + 1))
-  const prevStep = () => dispatch(setCurrentStep(currentStep - 1))
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    // Here you would typically send the data to a server
-    alert(`Application submitted successfully! User ID: ${userId}`)
+  // Validate current step
+  const validateStep = () => {
+    try {
+      if (currentStep === 1) personalDetailsSchema.parse(formData)
+      if (currentStep === 2) addressSchema.parse(formData)
+      if (currentStep === 3) {documentSchema.parse(documents)}
+
+      setErrors({})
+      return true
+    } catch (err) {
+      if (err instanceof ZodError) {
+        const fieldErrors: Record<string, string> = {}
+
+        err.issues.forEach((issue) => {
+          const fieldName = issue.path[0]
+          if (fieldName) {
+            fieldErrors[fieldName as string] = issue.message
+          }
+        })
+
+        setErrors(fieldErrors)
+      }
+      return false
+    }
+
+  }
+
+  
+
+  const next = () => {
+    if (validateStep()) dispatch(setCurrentStep(currentStep + 1))
+  }
+
+  const prev = () => dispatch(setCurrentStep(currentStep - 1))
+
+  const submit = () => {
+    alert(`PAN Application Submitted\nUser ID: ${userId}`)
     dispatch(resetForm())
     onBack()
   }
 
-  const renderStepIndicator = () => (
-    <div className="flex justify-center mb-8">
-      {[1, 2, 3, 4, 5].map(step => (
-        <div key={step} className="flex items-center">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-            step <= currentStep ? 'bg-blue-500 text-white' : 'bg-gray-300 text-gray-600'
-          }`}>
-            {step}
-          </div>
-          {step < 5 && <div className={`w-12 h-1 ${step < currentStep ? 'bg-blue-500' : 'bg-gray-300'}`}></div>}
-        </div>
-      ))}
-    </div>
-  )
-
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="max-w-4xl mx-auto px-6">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-gray-800">New PAN Application</h1>
-          <button
-            onClick={onBack}
-            className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg transition"
-          >
-            ← Back
-          </button>
-        </div>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f4f6f8', py: 6 }}>
+      <Container maxWidth="md">
+        {/* Page Header */}
+        <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between' }}>
+          <Typography variant="h4" fontWeight={700}>
+            New PAN Application
+          </Typography>
+          <Button variant="outlined" onClick={onBack}>
+            Back
+          </Button>
+        </Box>
 
-        <div className="bg-white p-8 rounded-xl shadow-md">
-          <div className="mb-6">
-            <p className="text-sm text-gray-600">User ID: <span className="font-mono text-blue-600">{userId}</span></p>
-          </div>
+        {/* Stepper */}
+        <Stepper activeStep={currentStep - 1} sx={{ mb: 4 }}>
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
 
-          {renderStepIndicator()}
+        {/* Form Card */}
+        <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Application ID: <strong>{userId}</strong>
+          </Typography>
 
-          <form onSubmit={handleSubmit}>
-            {currentStep === 1 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-semibold mb-4">Personal Details</h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Surname *</label>
-                    <input
-                      type="text"
-                      name="surname"
-                      value={formData.surname}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Middle Name</label>
-                    <input
-                      type="text"
-                      name="middleName"
-                      value={formData.middleName}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Gender *</label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="transgender">Transgender</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
-                    <input
-                      type="date"
-                      name="dob"
-                      value={formData.dob}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Father's Name *</label>
-                  <input
-                    type="text"
-                    name="fatherName"
-                    value={formData.fatherName}
-                    onChange={handleInputChange}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
+          {/* STEP 1: PERSONAL */}
+          {currentStep === 1 && (
+            <Grid container spacing={3}>
+              {[
+                { label: 'First Name', name: 'firstName' },
+                { label: 'Middle Name', name: 'middleName' },
+                { label: 'Surname', name: 'surname' },
+                { label: "Father's First Name", name: 'fatherFirstName' },
+                { label: "Father's Middle Name", name: 'fatherMiddleName' },
+                { label: "Father's Last Name", name: 'fatherLastName' },
+                { label: 'Date of Birth', name: 'dob', type: 'date' },
+                { label: 'Email ID', name: 'email' },
+                { label: 'Phone Number', name: 'phone' },
+              ].map((field) => (
+                <Grid item xs={12} md={field.name.includes('dob') ? 6 : 4} key={field.name}>
+                  <TextField
+                    fullWidth
+                    type={field.type || 'text'}
+                    label={field.label}
+                    name={field.name}
+                    value={formData[field.name] || ''}
+                    onChange={handleTextChange}
+                    error={!!errors[field.name]}
+                    helperText={errors[field.name]}
+                    InputLabelProps={field.type === 'date' ? { shrink: true } : undefined}
                   />
-                </div>
-              </div>
-            )}
+                </Grid>
+              ))}
+            </Grid>
+          )}
 
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-semibold mb-4">Contact Details</h2>
+          {/* STEP 2: RESIDENCE */}
+          {currentStep === 2 && (
+            <Grid container spacing={3}>
+              {[
+                { label: 'House Number', name: 'houseNumber' },
+                { label: 'Village / Town', name: 'villageTown' },
+                { label: 'Road / Street / Post Office', name: 'roadStreetPostOffice' },
+                { label: 'Pincode', name: 'pincode' },
+                { label: 'Area / Locality / Sub-Division', name: 'areaLocalitySubDivision' },
+                { label: 'City / District', name: 'cityDistrict' },
+                { label: 'Country', name: 'country' },
+              ].map((field) => (
+                <Grid item xs={12} md={field.name === 'country' ? 12 : 4} key={field.name}>
+                  <TextField
+                    fullWidth
+                    label={field.label}
+                    name={field.name}
+                    value={formData[field.name] || ''}
+                    onChange={handleTextChange}
+                    error={!!errors[field.name]}
+                    helperText={errors[field.name]}
+                  />
+                </Grid>
+              ))}
+            </Grid>
+          )}
 
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium text-gray-800">Residence Address</h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">House Number *</label>
-                      <input
-                        type="text"
-                        name="houseNumber"
-                        value={formData.houseNumber}
-                        onChange={handleInputChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Village/Town *</label>
-                      <input
-                        type="text"
-                        name="villageTown"
-                        value={formData.villageTown}
-                        onChange={handleInputChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Road/Street/Post Office *</label>
+          {/* STEP 3: DOCUMENTS */}
+          {currentStep === 3 && (
+            <Grid container spacing={3}>
+              {[
+                { label: 'Upload Aadhaar Front', name: 'aadhaarFront' },
+                { label: 'Upload Aadhaar Back', name: 'aadhaarBack' },
+                { label: 'Upload Signature', name: 'signature' },
+                { label: 'Upload Photo', name: 'photo' },
+              ].map((field) => (
+                <Grid item xs={12} md={6} key={field.name}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    component="label"
+                    color={errors[field.name] ? 'error' : 'primary'}
+                  >
+                    {field.label}
                     <input
-                      type="text"
-                      name="roadStreetPostOffice"
-                      value={formData.roadStreetPostOffice}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Pincode *</label>
-                      <input
-                        type="text"
-                        name="pincode"
-                        value={formData.pincode}
-                        onChange={handleInputChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Area/Locality/Sub-Division *</label>
-                      <input
-                        type="text"
-                        name="areaLocalitySubDivision"
-                        value={formData.areaLocalitySubDivision}
-                        onChange={handleInputChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">City/District *</label>
-                      <input
-                        type="text"
-                        name="cityDistrict"
-                        value={formData.cityDistrict}
-                        onChange={handleInputChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Country *</label>
-                      <input
-                        type="text"
-                        name="country"
-                        value={formData.country}
-                        onChange={handleInputChange}
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        required
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Email ID *</label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-semibold mb-4">Document Upload</h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Aadhaar Card Front *</label>
-                    <input
+                      hidden
                       type="file"
-                      name="aadhaarFront"
-                      onChange={handleFileChange}
+                      name={field.name}
                       accept="image/*"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Aadhaar Card Back *</label>
-                    <input
-                      type="file"
-                      name="aadhaarBack"
                       onChange={handleFileChange}
-                      accept="image/*"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Signature Upload *</label>
-                    <input
-                      type="file"
-                      name="signature"
-                      onChange={handleFileChange}
-                      accept="image/*"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Photo Upload *</label>
-                    <input
-                      type="file"
-                      name="photo"
-                      onChange={handleFileChange}
-                      accept="image/*"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+                  </Button>
 
-            {currentStep === 4 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-semibold mb-4">Review Your Application</h2>
-
-                <div className="bg-gray-50 p-6 rounded-lg space-y-6">
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Personal Details</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div><strong>Full Name:</strong> {formData.firstName} {formData.middleName} {formData.surname}</div>
-                      <div><strong>Gender:</strong> {formData.gender}</div>
-                      <div><strong>Date of Birth:</strong> {formData.dob}</div>
-                      <div><strong>Father's Name:</strong> {formData.fatherName}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Address Details</h3>
-                    <div className="text-sm space-y-1">
-                      <div><strong>House Number:</strong> {formData.houseNumber}</div>
-                      <div><strong>Village/Town:</strong> {formData.villageTown}</div>
-                      <div><strong>Road/Street/Post Office:</strong> {formData.roadStreetPostOffice}</div>
-                      <div><strong>Area/Locality/Sub-Division:</strong> {formData.areaLocalitySubDivision}</div>
-                      <div><strong>City/District:</strong> {formData.cityDistrict}</div>
-                      <div><strong>Pincode:</strong> {formData.pincode}</div>
-                      <div><strong>Country:</strong> {formData.country}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Contact Information</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                      <div><strong>Phone Number:</strong> {formData.phone}</div>
-                      <div><strong>Email ID:</strong> {formData.email}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Documents</h3>
-                    <div className="text-sm space-y-1">
-                      <div><strong>Aadhaar Front:</strong> {formData.aadhaarFront?.name || 'Not uploaded'}</div>
-                      <div><strong>Aadhaar Back:</strong> {formData.aadhaarBack?.name || 'Not uploaded'}</div>
-                      <div><strong>Signature:</strong> {formData.signature?.name || 'Not uploaded'}</div>
-                      <div><strong>Photo:</strong> {formData.photo?.name || 'Not uploaded'}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <h3 className="text-lg font-semibold mb-3 text-gray-800">Payment Details</h3>
-                    <div className="text-sm space-y-1">
-                      <div><strong>Payment Method:</strong> {formData.paymentMethod || 'Not selected'}</div>
-                      <div><strong>Amount:</strong> ₹{formData.amount}</div>
-                      {formData.cardNumber && <div><strong>Card Number:</strong> **** **** **** {formData.cardNumber.slice(-4)}</div>}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                  <p className="text-sm text-yellow-800">
-                    <strong>Important:</strong> Please review all the information carefully. Once submitted, you cannot modify the application.
-                    Ensure all documents are clear and valid.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {currentStep === 5 && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-semibold mb-4">Payment Details</h2>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-medium">PAN Application Fee</span>
-                    <span className="text-xl font-bold text-blue-600">₹{formData.amount}</span>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Payment Method *</label>
-                    <select
-                      name="paymentMethod"
-                      value={formData.paymentMethod}
-                      onChange={handleInputChange}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    >
-                      <option value="">Select Payment Method</option>
-                      <option value="credit-card">Credit Card</option>
-                      <option value="debit-card">Debit Card</option>
-                      <option value="net-banking">Net Banking</option>
-                      <option value="upi">UPI</option>
-                    </select>
-                  </div>
-
-                  {(formData.paymentMethod === 'credit-card' || formData.paymentMethod === 'debit-card') && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Card Number *</label>
-                        <input
-                          type="text"
-                          name="cardNumber"
-                          value={formData.cardNumber}
-                          onChange={handleInputChange}
-                          placeholder="1234 5678 9012 3456"
-                          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                          required
-                        />
-                      </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label>
-                          <input
-                            type="text"
-                            name="expiryDate"
-                            value={formData.expiryDate}
-                            onChange={handleInputChange}
-                            placeholder="MM/YY"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">CVV *</label>
-                          <input
-                            type="text"
-                            name="cvv"
-                            value={formData.cvv}
-                            onChange={handleInputChange}
-                            placeholder="123"
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            required
-                          />
-                        </div>
-                      </div>
-                    </div>
+                  {errors[field.name] && (
+                    <Typography color="error" variant="caption">
+                      {errors[field.name]}
+                    </Typography>
                   )}
+                </Grid>
+              ))}
+            </Grid>
+          )}
 
-                  {formData.paymentMethod === 'net-banking' && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        You will be redirected to your bank's website to complete the payment securely.
-                      </p>
-                    </div>
-                  )}
+          {/* STEP 4: REVIEW */}
+          {currentStep === 4 && (
+            <Box sx={{ lineHeight: 2 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                Review Application
+              </Typography>
+              <Typography><strong>Name:</strong> {formData.firstName} {formData.surname}</Typography>
+              <Typography><strong>Email:</strong> {formData.email}</Typography>
+              <Typography><strong>Phone:</strong> {formData.phone}</Typography>
+              <Typography><strong>Address:</strong> {formData.houseNumber}, {formData.villageTown}, {formData.cityDistrict}, {formData.country}</Typography>
+            </Box>
+          )}
 
-                  {formData.paymentMethod === 'upi' && (
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <p className="text-sm text-gray-600">
-                        Enter your UPI ID to proceed with the payment.
-                      </p>
-                      <input
-                        type="text"
-                        name="upiId"
-                        placeholder="yourname@upi"
-                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent mt-2"
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
+          {/* STEP 5: PAYMENT */}
+          {currentStep === 5 && (
+            <>
+              <Typography variant="h6" sx={{ mb: 3 }}>
+                Payment
+              </Typography>
+              <Typography variant="h5" color="primary" sx={{ mb: 3 }}>
+                Amount Payable: ₹{formData.amount || 107}
+              </Typography>
+              <Button fullWidth size="large" variant="contained" color="success" onClick={submit}>
+                Confirm & Submit Application
+              </Button>
+            </>
+          )}
+
+          {/* Navigation Buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 5 }}>
+            {currentStep > 1 && (
+              <Button variant="outlined" onClick={prev}>
+                Previous
+              </Button>
             )}
-
-            <div className="flex justify-between mt-8">
-              {currentStep > 1 && (
-                <button
-                  type="button"
-                  onClick={prevStep}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg transition"
-                >
-                  Previous
-                </button>
-              )}
-
-              {currentStep < 5 ? (
-                <button
-                  type="button"
-                  onClick={nextStep}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition ml-auto"
-                >
-                  Next
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  className="bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-lg transition ml-auto"
-                >
-                  Confirm & Submit Application
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+            {currentStep < 5 && (
+              <Button variant="contained" onClick={next}>
+                Next
+              </Button>
+            )}
+          </Box>
+        </Paper>
+      </Container>
+    </Box>
   )
 }
 
