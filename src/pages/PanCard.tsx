@@ -15,7 +15,7 @@ import {
 } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
-
+import PanApplicationPage from './PanApplicationPage'
 const PanCard = ({
   onBack,
   onNavigate,
@@ -26,11 +26,17 @@ const PanCard = ({
   const [open, setOpen] = useState(false)
   const [service, setService] = useState('')
 
+
+  const [page, setPage] = useState<'home' | 'pan-form'>('home')
+
   const handleOpen = (serviceName: string) => {
     setService(serviceName)
     setOpen(true)
   }
 
+  if (page === 'pan-form') {
+    return <PanApplicationPage onBack={() => setPage('home')} />
+  }
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f4f6f8', py: 8 }}>
       {/* FULL WIDTH CONTAINER – NO GAP */}
@@ -65,7 +71,8 @@ const PanCard = ({
             {
               title: 'New PAN Application',
               desc: 'Apply for a new PAN card for individuals.',
-              action: () => onNavigate('pan-form'),
+              action: () => setPage('pan-form'),
+
             },
             {
               title: 'PAN Correction',

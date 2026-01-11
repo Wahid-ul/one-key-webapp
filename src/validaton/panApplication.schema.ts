@@ -50,3 +50,8 @@ export const documentSchema = z.object({
   signature: fileSchema,
   photo: fileSchema,
 })
+
+export const paymentMethod=z.object({
+    paymentMethod: z.string().min(1, "Select a payment method"),
+
+})

@@ -6,7 +6,9 @@ export interface PanApplicationData {
   firstName: string
   gender: string
   dob: string
-  fatherName: string
+  fatherFirstName: string
+  fatherMiddleName: string
+  fatherLastName: string
   houseNumber: string
   villageTown: string
   roadStreetPostOffice: string
@@ -40,8 +42,9 @@ const initialState: PanApplicationState = {
     firstName: '',
     gender: '',
     dob: '',
-    fatherName: '',
-    houseNumber: '',
+    fatherFirstName: '',
+    fatherMiddleName: '',
+    fatherLastName: '',
     villageTown: '',
     roadStreetPostOffice: '',
     pincode: '',

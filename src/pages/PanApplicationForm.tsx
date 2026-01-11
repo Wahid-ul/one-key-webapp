@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
+import { QRCodeCanvas } from "qrcode.react";
 import type { RootState } from '../app/store'
+// import { setPayment,markPaymentSuccess } from '../features/service/paymentSlice';
+import PaymentSuccess from './PaymentSuccess'
 import {
   updateFormData,
   setCurrentStep,
@@ -8,16 +11,22 @@ import {
   setUserId,
 } from '../features/service/panApplicationSlice'
 
+import PaymentStep from './PaymentStep';
 import { ZodError } from 'zod'
 
 
 import {
   personalDetailsSchema,
   addressSchema,
-  documentSchema
+  documentSchema,
+  paymentMethod
 } from '../validaton/panApplication.schema'
 
 import {
+  FormControl,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
   Box,
   Container,
   Paper,
@@ -41,10 +50,14 @@ const PanApplicationForm = ({ onBack }: { onBack: () => void }) => {
   const [userId] = useState(`USER-${Date.now().toString().slice(-6)}`)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
+  // const { amount, upiId } = useSelector((state: RootState) => state.payment)
+
   useEffect(() => {
     dispatch(setUserId(userId))
     window.scrollTo(0, 0)
   }, [dispatch, userId])
+
+  
 
   const [documents, setDocuments] = useState<{
     aadhaarFront?: File
@@ -66,6 +79,12 @@ const PanApplicationForm = ({ onBack }: { onBack: () => void }) => {
       setDocuments((prev) => ({ ...prev, [name]: files[0] }))
     }
   }
+
+  const handlePaymentConfirm = () => {
+    dispatch(updateFormData({ paymentStatus: "PAID" }));
+    setCurrentStep(6); // Move to final submission
+  };
+
 
 
   // Validate current step
@@ -237,27 +256,24 @@ const PanApplicationForm = ({ onBack }: { onBack: () => void }) => {
               <Typography variant="h6" sx={{ mb: 2 }}>
                 Review Application
               </Typography>
-              <Typography><strong>Name:</strong> {formData.firstName} {formData.surname}</Typography>
+              <Typography><strong>Name:</strong> {formData.firstName} {formData.middleName} {formData.surname} </Typography>
+              <Typography><strong>Father's Name:</strong> {formData.fatherFirstName} {formData.fatherMiddleName} {formData.fatherLastName} </Typography>
+              <Typography><strong>Date of Birth:</strong> {formData.dob} </Typography>
               <Typography><strong>Email:</strong> {formData.email}</Typography>
               <Typography><strong>Phone:</strong> {formData.phone}</Typography>
-              <Typography><strong>Address:</strong> {formData.houseNumber}, {formData.villageTown}, {formData.cityDistrict}, {formData.country}</Typography>
+              <Typography><strong>Address:</strong> {formData.houseNumber}, {formData.villageTown}, {formData.roadStreetPostOffice}, {formData.country},{formData.pincode}, {formData.areaLocalitySubDivision},{formData.cityDistrict},{formData.country}</Typography>
             </Box>
           )}
 
           {/* STEP 5: PAYMENT */}
+          {/* STEP 5: UPI QR PAYMENT */}
+          {/* STEP 5: UPI QR PAYMENT */}
           {currentStep === 5 && (
-            <>
-              <Typography variant="h6" sx={{ mb: 3 }}>
-                Payment
-              </Typography>
-              <Typography variant="h5" color="primary" sx={{ mb: 3 }}>
-                Amount Payable: ₹{formData.amount || 107}
-              </Typography>
-              <Button fullWidth size="large" variant="contained" color="success" onClick={submit}>
-                Confirm & Submit Application
-              </Button>
-            </>
+            <PaymentStep userId={userId} amount={formData.amount || 1} />
           )}
+
+
+
 
           {/* Navigation Buttons */}
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 5 }}>
